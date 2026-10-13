@@ -101,23 +101,23 @@ export interface BatchUpdateMetadata {
  * @param docs - The Google Docs client
  * @param documentId - The document ID
  * @param requests - Array of requests to execute
- * @param log - Optional logger for progress tracking
+ * @param opts - Optional progress logger and suggestMode flag
  * @returns Metadata about the execution (request counts, API calls, timing)
  */
+export interface BatchUpdateSplittingOptions extends BatchUpdateOptions {
+  /** Optional progress logger. */
+  log?: { info: (msg: string) => void };
+}
+
 export async function executeBatchUpdateWithSplitting(
   docs: Docs,
   documentId: string,
   requests: docs_v1.Schema$Request[],
-  logOrOpts?:
-    | { info: (msg: string) => void }
-    | (BatchUpdateOptions & { log?: { info: (msg: string) => void } })
+  opts?: BatchUpdateSplittingOptions
 ): Promise<BatchUpdateMetadata> {
   const overallStart = performance.now();
-  const log =
-    logOrOpts && 'info' in logOrOpts
-      ? (logOrOpts as { info: (msg: string) => void })
-      : (logOrOpts as any)?.log;
-  const suggestMode = (logOrOpts as any)?.suggestMode === true;
+  const log = opts?.log;
+  const suggestMode = opts?.suggestMode === true;
 
   if (!requests || requests.length === 0) {
     return {
@@ -159,13 +159,16 @@ export async function executeBatchUpdateWithSplitting(
 
   let totalApiCalls = 0;
   const suggestionResponses: docs_v1.Schema$SuggestionResponse[] = [];
-  let commentUpdateState: string | null | undefined;
+  // Per-batch save states in suggest mode. The reported state is ALL_SAVED
+  // only when every batch saved; otherwise the first non-saved state wins
+  // so a silently unsaved batch never hides behind a later saved one.
+  const batchStates: (string | null | undefined)[] = [];
   const runBatch = async (batch: docs_v1.Schema$Request[]) => {
     const res = await executeBatchUpdate(docs, documentId, batch, { suggestMode });
     const anyRes = res as any;
     if (Array.isArray(anyRes?.suggestionResponses))
       suggestionResponses.push(...anyRes.suggestionResponses);
-    if (anyRes?.commentUpdateState) commentUpdateState = anyRes.commentUpdateState;
+    if (suggestMode) batchStates.push(anyRes?.commentUpdateState);
     totalApiCalls++;
     return res;
   };
@@ -225,6 +228,14 @@ export async function executeBatchUpdateWithSplitting(
   const formatElapsed = performance.now() - formatStart;
 
   const totalElapsedMs = performance.now() - overallStart;
+
+  // Effective save state: ALL_SAVED only if every batch saved, otherwise the
+  // first non-saved state (or MISSING when a batch reported nothing).
+  const commentUpdateState = suggestMode
+    ? batchStates.every((s) => s === 'ALL_SAVED')
+      ? 'ALL_SAVED'
+      : (batchStates.find((s) => s !== 'ALL_SAVED') ?? 'MISSING')
+    : undefined;
 
   return {
     totalRequests: requests.length,

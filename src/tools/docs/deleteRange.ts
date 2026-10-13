@@ -81,7 +81,7 @@ export function register(server: FastMCP) {
           return (
             base +
             ' as a suggestion.' +
-            suggestModeNote(true, res?.commentUpdateState, res?.suggestionResponses)
+            suggestModeNote(res?.commentUpdateState, res?.suggestionResponses)
           );
         }
         return base + '.';

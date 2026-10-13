@@ -48,32 +48,26 @@ export function register(server: FastMCP) {
           if (problem) throw new UserError(problem);
         }
         if (args.tabId) {
-          const targetTab = await GDocsHelpers.getDocumentTab(docs, args.documentId, args.tabId);
-
-          // Insert with tabId
-          await GDocsHelpers.executeBatchUpdate(docs, args.documentId, [request], {
-            suggestMode: args.suggestMode,
+          // Fails fast when the tab does not exist.
+          await GDocsHelpers.getDocumentTab(docs, args.documentId, args.tabId);
+        }
+        let res: any;
+        if (args.suggestMode) {
+          res = await GDocsHelpers.executeBatchUpdate(docs, args.documentId, [request], {
+            suggestMode: true,
           });
+        } else if (args.tabId) {
+          // Insert with tabId
+          await GDocsHelpers.executeBatchUpdate(docs, args.documentId, [request]);
         } else {
           // Use existing helper for backward compatibility (direct path keeps old behaviour)
-          if (args.suggestMode) {
-            const res: any = await GDocsHelpers.executeBatchUpdate(
-              docs,
-              args.documentId,
-              [request],
-              {
-                suggestMode: true,
-              }
-            );
-            return (
-              `Successfully inserted text at index ${args.index}${args.tabId ? ` in tab ${args.tabId}` : ''} as a suggestion.` +
-              suggestModeNote(true, res?.commentUpdateState, res?.suggestionResponses)
-            );
-          }
           await GDocsHelpers.insertText(docs, args.documentId, args.text, args.index);
         }
         if (args.suggestMode) {
-          return `Successfully inserted text at index ${args.index}${args.tabId ? ` in tab ${args.tabId}` : ''} as a suggestion. Verify with listSuggestions.`;
+          return (
+            `Successfully inserted text at index ${args.index}${args.tabId ? ` in tab ${args.tabId}` : ''} as a suggestion.` +
+            suggestModeNote(res?.commentUpdateState, res?.suggestionResponses)
+          );
         }
         return `Successfully inserted text at index ${args.index}${args.tabId ? ` in tab ${args.tabId}` : ''}.`;
       } catch (error: any) {

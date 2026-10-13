@@ -4,7 +4,7 @@ import type { docs_v1 } from 'googleapis';
 import { getDocsClient } from '../../../clients.js';
 import { BatchApplyTextStyleToolParameters, BatchApplyTextStyleToolArgs } from '../../../types.js';
 import * as GDocsHelpers from '../../../googleDocsApiHelpers.js';
-import { suggestModeNote, toUserError, validateSuggestModeRequests } from '../../../suggestions.js';
+import { suggestModeNote, validateSuggestModeRequests } from '../../../suggestions.js';
 
 // Mirrors MAX_BATCH_UPDATE_REQUESTS in googleDocsApiHelpers.ts — Google's own
 // per-batchUpdate-call request ceiling, not an arbitrary choice.
@@ -86,23 +86,25 @@ export function register(server: FastMCP) {
         throw new UserError(`No operations could be applied. Skipped: ${JSON.stringify(skipped)}`);
       }
 
-      if ((args as any).suggestMode) {
+      if (args.suggestMode) {
         const problem = validateSuggestModeRequests(requests);
         if (problem) throw new UserError(problem);
       }
       let apiCalls = 0;
-      let commentUpdateState: string | undefined;
+      // Per-chunk save states in suggest mode. The reported state is ALL_SAVED
+      // only when every chunk saved; otherwise the first non-saved state wins.
+      const chunkStates: (string | null | undefined)[] = [];
       const suggestionResponses: any[] = [];
       const totalChunks = Math.ceil(requests.length / MAX_REQUESTS_PER_CALL);
       try {
         for (let i = 0; i < requests.length; i += MAX_REQUESTS_PER_CALL) {
           const chunk = requests.slice(i, i + MAX_REQUESTS_PER_CALL);
           const res: any = await GDocsHelpers.executeBatchUpdate(docs, args.documentId, chunk, {
-            suggestMode: (args as any).suggestMode,
+            suggestMode: args.suggestMode,
           });
           if (Array.isArray(res?.suggestionResponses))
             suggestionResponses.push(...res.suggestionResponses);
-          if (res?.commentUpdateState) commentUpdateState = res.commentUpdateState;
+          if (args.suggestMode) chunkStates.push(res?.commentUpdateState);
           apiCalls++;
         }
       } catch (error: any) {
@@ -113,11 +115,16 @@ export function register(server: FastMCP) {
         );
       }
 
+      const commentUpdateState = args.suggestMode
+        ? chunkStates.every((s) => s === 'ALL_SAVED')
+          ? 'ALL_SAVED'
+          : (chunkStates.find((s) => s !== 'ALL_SAVED') ?? 'MISSING')
+        : undefined;
       const summary =
         `Applied ${requests.length}/${args.operations.length} text style operation(s) ` +
         `(${Array.from(fieldsSeen).join(', ')}) to doc ${args.documentId} in ${apiCalls} Docs API call(s)` +
-        ((args as any).suggestMode
-          ? ' as suggestions.' + suggestModeNote(true, commentUpdateState, suggestionResponses)
+        (args.suggestMode
+          ? ' as suggestions.' + suggestModeNote(commentUpdateState, suggestionResponses)
           : '.');
 
       if (skipped.length > 0) {

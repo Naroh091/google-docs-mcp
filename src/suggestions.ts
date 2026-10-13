@@ -32,11 +32,6 @@ const SUGGEST_MODE_UNSUPPORTED_REQUEST_KEYS = new Set([
   'createFooter',
 ]);
 
-function toSnakeKeys(obj: unknown): Set<string> {
-  if (!obj || typeof obj !== 'object') return new Set();
-  return new Set(Object.keys(obj as Record<string, unknown>));
-}
-
 /**
  * Client-side validation for suggest mode. Returns an actionable error
  * message, or null when the batch looks suggestible. This avoids opaque
@@ -52,7 +47,6 @@ export function validateSuggestModeRequests(requests: docs_v1.Schema$Request[]):
       }
       if (key === 'updateDocumentStyle') {
         const style = (req as any).updateDocumentStyle?.documentStyle ?? {};
-        void [...toSnakeKeys(style)];
         // Direct check on the raw keys (camelCase from googleapis).
         const rawBad = Object.keys(style).filter((k) =>
           ['documentMode', 'useEvenPageHeaderFooter', 'useFirstPageHeaderFooter'].includes(k)
@@ -344,12 +338,10 @@ function collectMarkersOnly(doc: any) {
 
 /** Wrap a suggest-mode batchUpdate outcome with the advisory state sentence. */
 export function suggestModeNote(
-  ok: boolean,
   commentState: string | undefined | null,
   suggestionResponses: any[] | undefined,
   opts?: { allNoops?: boolean }
 ): string {
-  void ok;
   return (
     describeCommentUpdateState(commentState, opts) +
     describeSuggestionResponses(suggestionResponses)

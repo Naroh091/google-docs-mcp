@@ -63,7 +63,7 @@ export function register(server: FastMCP) {
         const res = await docs.documents.get({
           documentId: args.documentId,
           includeTabsContent: needsTabsContent,
-          suggestionsViewMode: (args as any).suggestionsViewMode ?? 'PREVIEW_WITHOUT_SUGGESTIONS',
+          suggestionsViewMode: args.suggestionsViewMode ?? 'PREVIEW_WITHOUT_SUGGESTIONS',
           fields: needsTabsContent
             ? `title,documentId,${buildTabsFieldMask('documentTab(body,documentStyle,namedStyles,lists)')}`
             : fields,

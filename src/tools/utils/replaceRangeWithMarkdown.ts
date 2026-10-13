@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { getDocsClient } from '../../clients.js';
 import { DocumentIdParameter, MarkdownConversionError } from '../../types.js';
 import * as GDocsHelpers from '../../googleDocsApiHelpers.js';
-import { suggestModeNote, validateSuggestModeRequests } from '../../suggestions.js';
+import { suggestModeNote } from '../../suggestions.js';
 import { insertMarkdown, formatInsertResult } from '../../markdown-transformer/index.js';
 
 export function register(server: FastMCP) {
@@ -53,8 +53,6 @@ export function register(server: FastMCP) {
       );
 
       try {
-        if (args.suggestMode) {
-        }
         // 1. Delete the existing content in the specified range
         const deleteRange: any = {
           startIndex: args.startIndex,
@@ -92,7 +90,6 @@ export function register(server: FastMCP) {
           return (
             base +
             suggestModeNote(
-              true,
               (result.batchUpdate as any)?.commentUpdateState,
               (result.batchUpdate as any)?.suggestionResponses
             )

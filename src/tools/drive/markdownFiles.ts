@@ -198,7 +198,9 @@ export function register(server: FastMCP) {
         }
         const updated = await drive.files.update({
           fileId: args.fileId,
-          media: { mimeType: MARKDOWN_MIME, body: toStream(next) },
+          // Keep the file's existing media type: uploading as text/markdown
+          // would silently convert e.g. .txt or .csv files.
+          media: { mimeType, body: toStream(next) },
           fields: 'id,name,mimeType,webViewLink,modifiedTime',
           supportsAllDrives: true,
         });

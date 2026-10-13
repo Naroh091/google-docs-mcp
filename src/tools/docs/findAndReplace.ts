@@ -75,7 +75,7 @@ export function register(server: FastMCP) {
           return (
             base +
             ' as suggestions.' +
-            suggestModeNote(true, response?.commentUpdateState, response?.suggestionResponses, {
+            suggestModeNote(response?.commentUpdateState, response?.suggestionResponses, {
               allNoops: changed === 0,
             })
           );

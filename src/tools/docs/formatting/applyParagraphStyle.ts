@@ -121,7 +121,7 @@ export function register(server: FastMCP) {
         }
 
         log.info(`Applying styles: ${requestInfo.fields.join(', ')}`);
-        if ((args as any).suggestMode) {
+        if (args.suggestMode) {
           const problem = validateSuggestModeRequests([requestInfo.request]);
           if (problem) throw new UserError(problem);
         }
@@ -130,16 +130,16 @@ export function register(server: FastMCP) {
           args.documentId,
           [requestInfo.request],
           {
-            suggestMode: (args as any).suggestMode,
+            suggestMode: args.suggestMode,
           }
         );
 
         const base = `Successfully applied paragraph styles (${requestInfo.fields.join(', ')}) to the paragraph${args.tabId ? ` in tab ${args.tabId}` : ''}`;
-        if ((args as any).suggestMode) {
+        if (args.suggestMode) {
           return (
             base +
             ' as suggestions.' +
-            suggestModeNote(true, res?.commentUpdateState, res?.suggestionResponses)
+            suggestModeNote(res?.commentUpdateState, res?.suggestionResponses)
           );
         }
         return base + '.';
