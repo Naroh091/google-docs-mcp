@@ -121,7 +121,10 @@ export function register(server: FastMCP) {
         //    the old content, all subsequently inserted text inherits those
         //    properties, corrupting the new document. We strip both bullets and
         //    text styles from the survivor before inserting.
-        {
+        //    Skipped in suggest mode: the delete is only a pending suggestion,
+        //    so the old content is still there and the cleanup (which can't be
+        //    a suggestion) would strip its formatting live.
+        if (!args.suggestMode) {
           // Re-read to get the survivor's endIndex (always a short document now)
           const docAfterDelete = await docs.documents.get({
             documentId: args.documentId,
